@@ -1,0 +1,57 @@
+
+body
+{
+	padding: 20px;
+}
+
+#controls
+{
+	overflow: hidden;
+	margin-bottom: 15px;
+}
+	#controls div
+	{
+		height: 32px;
+		width: 32px;
+		margin-right: 10px;
+		float: left;
+		cursor: pointer;
+	}
+	
+	#play_pause
+	{
+		background: transparent url(../images/play.png) no-repeat center center;
+	}
+	
+	#play_pause.pause
+	{
+		background: transparent url(../images/pause.png) no-repeat center center;
+	}
+	
+	#stop
+	{
+		background: transparent url(../images/stop.png) no-repeat center center;
+	}
+	
+#test_box
+{
+	position: relative;
+	border: 2px solid #000000;
+	height: 400px;
+	width: 400px;
+}
+
+	#test
+	{
+		position: absolute;
+		top: 50%;
+		left: 10%;
+		margin-top: -15px;
+		margin-left: -15px;
+		background: red;
+		height: 30px;
+		width: 30px;
+		-moz-border-radius: 15px;
+		border: 0px solid #000;
+	}
+

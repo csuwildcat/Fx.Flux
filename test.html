@@ -1,0 +1,230 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+		<title></title>
+		
+		<link rel="stylesheet" type="text/css" href="css/test.css">
+	</head>
+
+
+	
+<body>
+	<div id="controls"><div id="play_pause"></div><div id="stop"></div></div>
+	<div id="test_box">
+		<div id="test"></div>
+	</div>
+</body>
+
+<script src="js/core-1.2.4.js" type="text/javascript"></script>	
+<script src="js/more-1.2.4.2.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+
+Fx.Flux = new Class({
+
+    Implements: [Events, Options],
+	
+    Binds:['set', 'start', 'pause', 'resume', 'toggle', 'cancel', 'onComplete', 'chain', 'callChain'],
+	
+    options: {
+        /*
+        onStart: $empty,
+        onCancel: $empty,
+        onComplete: $empty,
+        */
+        fps: 50,
+        unit: false,
+        duration: 500,
+        link: 'ignore'
+    },
+	
+    initialize: function(element, options){
+        this.element = document.id(element).store('flux', this);
+        this.setOptions(options);
+        this.fx = new Fx.Morph(this.element, options);
+		this.fx.chain = this.chain.bind(this);
+		this.fx.callChain = this.callChain.bind(this);
+		this.fx.onComplete = this.onComplete.bind(this);
+        this.reset = this.options;
+		this.cycle = [];
+    },
+	
+    set: function(properties){
+        this.fx.set(properties);
+        return this.fx;
+    },
+	
+    start: function(properties){
+	
+        var duration = this.reset.duration;
+        var state = null;
+		
+        for (var p in properties){
+            
+            var splatter = $splat(properties[p]);
+            var options = null;
+            
+            splatter.each(function(e, i, a){
+                if($type(e) == 'object'){
+                    options = e;
+                    duration = (e.duration > duration) ? e.duration : duration;
+                    splatter.erase(e);
+                }
+            }, this);
+			 
+            if(p == 'visibility') state = splatter[0];
+			
+			var props = {};
+                props[p] = (splatter.length == 1) ? splatter[0] : splatter;
+            
+            var merged = (options) ? $merge(this.reset, options) : this.reset;            
+            var cachedFx = this.element.retrieve('flux:' + p);
+            
+            if(cachedFx){
+                cachedFx.options = merged;
+                this.cycle.push(cachedFx);
+                cachedFx.start(props);
+            }
+            else{
+                var propFx = new Fx.Morph(this.element, merged);
+                this.cycle.push(propFx);
+                this.element.store('flux:' + p, propFx.start(props));
+            }
+            
+        }
+		
+        this.fx.options.duration = duration;
+        state = (state) ? state : this.element.getStyle('visibility');
+		this.fx.start({'visibility': state});
+		
+        return this;
+    },
+	
+    pause: function(){
+        this.cycle.each(function(e){ e.stopTimer() });
+        this.fx.stopTimer();
+        return this;
+    },
+	
+    resume: function(){
+        this.cycle.each(function(e){ e.startTimer() });
+        this.fx.startTimer();
+        return this;
+    },
+	
+    toggle: function(){
+        (this.fx.time < this.fx.options.duration) ? this.resume() : this.pause();
+    },
+	
+    cancel: function(){
+		this.fx.cancel();
+        this.cycle.each(function(e){ e.cancel(); });
+        this.cycle.empty();
+		return this;
+    },
+	
+	onComplete: function(){
+		this.cycle.empty();
+		this.fx.fireEvent('complete', this.fx.subject);
+		(this.fx.$chain.length) ? this.fx.callChain() : this.fx.fireEvent('chainComplete', this.fx.subject);
+	},
+	
+    chain: function(fn, bind){
+		this.fx.$chain.extend([fn.bind(bind || this)]);
+		return this;
+	},
+	
+	callChain: function(){
+		return (this.fx.$chain.length) ? this.fx.$chain.shift().run(arguments) : false;
+	}
+
+});
+
+Element.Properties.flux = {
+
+    set: function(options){
+        var flux = this.retrieve('flux');
+        if (flux) flux.cancel();
+        return this.eliminate('flux').store('flux:options', $extend({link: 'cancel'}, options));
+    },
+
+    get: function(options){
+        if (options || !this.retrieve('flux')){
+            if (options || !this.retrieve('flux:options')) this.set('flux', options);
+            this.store('flux', new Fx.Flux(this, this.retrieve('flux:options')));
+        }
+        return this.retrieve('flux');
+    }
+
+};
+
+
+Element.implement({
+	
+    'flux': function(props){
+        this.get('flux').start(props);
+        return this;
+    },
+	
+	'place': function(){
+		var pos = this.getStyle('position');
+		if(pos != 'relative' && pos != 'absolute') this.setStyle('relative');
+	},
+	
+	'throw': function(x, y, options){
+		this.place();
+		options = (options) ? options : {};
+		
+		var duration = (!options.duration) ? [750, 1500] : [options.duration/2, options.duration];
+		var transition = (!options.invert) ? ['bounce:out', 'cubic:out'] : ['cubic:out', 'bounce:out'];
+		var unit = (!options.unit) ? 'px' : options.unit;
+
+		return this.get('flux').start({
+			'left':[ x, {'transition': transition[0], 'duration': ((!options.invert) ? duration[0] : duration[1]), 'unit': unit} ],
+			'top': [ y, {'transition': transition[1], 'duration':  ((!options.invert) ? duration[1] : duration[0]), 'unit': unit} ]
+		});
+	},
+	
+	'figure8': function(x, y, options){
+		this.place();
+		this.get
+		options = (options) ? options : {};
+		
+		var duration = options.duration || 2000;
+		var transition = (!options.invert) ? ['linear', 'circ:out'] : ['circ:out', 'linear'];
+		var unit = (!options.unit) ? 'px' : options.unit;
+
+		return this.get('flux').start({
+			'left':[ x, {'transition': transition[0], 'duration': duration, 'unit': unit} ],
+			'top': [ y, {'transition': transition[1], 'duration':  duration, 'unit': unit} ]
+		});
+	}
+	
+});
+
+// In case you want to pre instantiate, you can :)
+var test = $('test');
+
+$('play_pause').addEvent('click', function() {
+	if(this.hasClass('running')) {
+		this.toggleClass('pause');
+		test.get('flux').toggle();
+	}
+	else{
+		test.flux({ top: [370, {duration:1000, transition: 'bounce:out'}], left: [300, {transition: 'circ:out'}] });
+	}
+
+});
+
+$('stop').addEvent('click', function() {
+
+	$('test').get('flux').cancel().element.setStyles({'top': '50%', 'left':'10%'});
+	$('play_pause').set('class', '');
+	
+});
+
+</script>
+	
+	
+</html>
